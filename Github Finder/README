@@ -1,0 +1,12 @@
+A simple js project to fetch user data from github
+
+Requirement:
+1) Generate github token at:
+ https://docs.github.com/en/developers/apps/building-oauth-apps/authorizing-oauth-apps
+ use token at github.js
+ 
+2) Visual Studio Code:
+ Install extension Five Server (Live Server)
+ https://marketplace.visualstudio.com/items?itemName=yandeu.five-server
+
+
