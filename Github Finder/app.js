@@ -18,7 +18,7 @@ searchUser.addEventListener('keyup',(e) => {
         // Make Http call
         github.getUser(userText)
             .then(userData => {
-                if(userData.login === undefined)
+                if(userData.profile.login === undefined)
                 {
                     // Show alert
                     ui.showAlert("User not found", "alert alert-danger");
@@ -26,7 +26,8 @@ searchUser.addEventListener('keyup',(e) => {
                 else
                 {
                     // Show profile
-                    ui.showProfile(userData);
+                    ui.showProfile(userData.profile);
+                    ui.showRepos(userData.repos);
 
                 }
             })
