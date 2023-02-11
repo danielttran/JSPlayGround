@@ -1,0 +1,17 @@
+.toggle:before {
+    content: "";
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 1px solid black;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+li.collapsed>ul {
+    display: none;
+}
+
+li.collapsed>.toggle:before {
+    transform: rotate(45deg);
+}
