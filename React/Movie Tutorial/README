@@ -3,3 +3,5 @@ npm create vite@latest
 (then follow the instructions)
 etc...
 npm install
+
+npm run dev   // to run
