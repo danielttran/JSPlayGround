@@ -1,0 +1,221 @@
+/* CSS - No changes needed here */
+body {
+    font-family: sans-serif;
+    display: flex;
+    /* Use flexbox for layout */
+}
+
+.left-panel {
+    width: 250px;
+    border-right: 1px solid #ccc;
+    padding: 10px;
+    overflow-y: auto;
+    /* Add scrollbar if notes list overflows */
+}
+
+.right-panel {
+    flex: 1;
+    /* Take up remaining space */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.notebook-container,
+.controls {
+    margin-bottom: 10px;
+}
+
+.notebook-selector {
+    margin-bottom: 10px;
+}
+
+.notes-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    min-height: 50px;
+}
+
+.notes-list ul {
+    list-style: none;
+    padding-left: 20px;
+}
+
+.note-item {
+    padding: 5px 10px;
+    cursor: pointer;
+    user-select: none;
+    background-color: #f9f9f9;
+}
+
+.note-item:hover {
+    background-color: #f0f0f0;
+}
+
+.note-item.selected {
+    background-color: #ddd;
+    font-weight: bold;
+}
+
+.note-item.root-note {
+    font-weight: bold;
+}
+
+.note-item.child-note {}
+
+.note-content-area {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-height: 200px;
+    position: relative;
+    overflow: auto;
+    width: 900px;
+    height: 800px;
+}
+
+.note-element {
+    position: absolute;
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    padding: 5px;
+    box-sizing: border-box;
+    resize: both;
+    overflow: auto;
+    z-index: 1;
+    background-color: white;
+}
+
+.note-element.selected {
+    border-color: blue;
+    z-index: 10;
+}
+
+.note-element-header {
+    background-color: #eee;
+    padding: 2px 5px;
+    cursor: move;
+    /* Indicate draggable */
+    border-bottom: 1px solid #ccc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.note-element-header .title,
+.note-item .title {
+    flex-grow: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    margin-right: 5px;
+}
+
+
+.note-element-header .buttons {
+    display: flex;
+    gap: 5px;
+}
+
+.note-element-header button,
+.note-item button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.note-element-content {
+    overflow: auto;
+    height: calc(100% - 25px);
+    /* Subtract header height */
+}
+
+.canvas-note {
+    min-width: 150px;
+    min-height: 100px;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+}
+
+.hidden {
+    display: none;
+}
+
+#context-menu {
+    position: absolute;
+    display: none;
+    background-color: white;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    /* Ensure it's on top */
+}
+
+#context-menu ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#context-menu li {
+    padding: 5px 10px;
+    cursor: pointer;
+}
+
+#context-menu li:hover {
+    background-color: #eee;
+}
+
+.error-message {
+    color: red;
+    margin-top: 5px;
+}
+
+.collapsed .note-element-content {
+    display: none;
+}
+
+.collapsed .note-element-header {
+    border-bottom: none;
+}
+
+.collapsed {
+    resize: none;
+}
+
+.text-formatting-toolbar {
+    margin-bottom: 5px;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f0f0f0;
+    display: flex;
+    align-items: center;
+    /* Vertically center items */
+    gap: 5px;
+    /* Space between buttons */
+}
+
+.text-formatting-toolbar button {
+    background: none;
+    border: 1px solid #ccc;
+    padding: 2px 5px;
+    cursor: pointer;
+    border-radius: 3px;
+    /* Optional: rounded corners */
+}
+
+.text-formatting-toolbar button:hover {
+    background-color: #ddd;
+}
+
+.text-formatting-toolbar select {
+    border: 1px solid #ccc;
+    padding: 2px;
+    border-radius: 3px;
+    cursor: pointer;
+}
