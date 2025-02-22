@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notebook App</title>
+    <style>
+        /* CSS - No changes needed here */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            /* Use flexbox for layout */
+        }
+
+        .left-panel {
+            width: 250px;
+            border-right: 1px solid #ccc;
+            padding: 10px;
+            overflow-y: auto;
+            /* Add scrollbar if notes list overflows */
+        }
+
+        .right-panel {
+            flex: 1;
+            /* Take up remaining space */
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .notebook-container,
+        .controls {
+            margin-bottom: 10px;
+        }
+
+        .notebook-selector {
+            margin-bottom: 10px;
+        }
+
+        .notes-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            min-height: 50px;
+        }
+
+        .notes-list ul {
+            list-style: none;
+            padding-left: 20px;
+        }
+
+        .note-item {
+            padding: 5px 10px;
+            cursor: pointer;
+            user-select: none;
+            background-color: #f9f9f9;
+        }
+
+        .note-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .note-item.selected {
+            background-color: #ddd;
+            font-weight: bold;
+        }
+
+        .note-item.root-note {
+            font-weight: bold;
+        }
+
+        .note-item.child-note {}
+
+        .note-content-area {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-height: 200px;
+            position: relative;
+            overflow: auto;
+            width: 900px;
+            height: 800px;
+        }
+
+        .note-element {
+            position: absolute;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            padding: 5px;
+            box-sizing: border-box;
+            resize: both;
+            overflow: auto;
+            z-index: 1;
+            background-color: white;
+        }
+
+        .note-element.selected {
+            border-color: blue;
+            z-index: 10;
+        }
+
+        .note-element-header {
+            background-color: #eee;
+            padding: 2px 5px;
+            cursor: move;
+            /* Indicate draggable */
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .note-element-header .title,
+        .note-item .title {
+            flex-grow: 1;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            margin-right: 5px;
+        }
+
+
+        .note-element-header .buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .note-element-header button,
+        .note-item button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .note-element-content {
+            overflow: auto;
+            height: calc(100% - 25px);
+            /* Subtract header height */
+        }
+
+        .canvas-note {
+            min-width: 150px;
+            min-height: 100px;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #context-menu {
+            position: absolute;
+            display: none;
+            background-color: white;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            /* Ensure it's on top */
+        }
+
+        #context-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        #context-menu li {
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        #context-menu li:hover {
+            background-color: #eee;
+        }
+
+        .error-message {
+            color: red;
+            margin-top: 5px;
+        }
+
+        .collapsed .note-element-content {
+            display: none;
+        }
+
+        .collapsed .note-element-header {
+            border-bottom: none;
+        }
+
+        .collapsed {
+            resize: none;
+        }
+
+        .text-formatting-toolbar {
+            margin-bottom: 5px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            display: flex;
+            align-items: center;
+            /* Vertically center items */
+            gap: 5px;
+            /* Space between buttons */
+        }
+
+        .text-formatting-toolbar button {
+            background: none;
+            border: 1px solid #ccc;
+            padding: 2px 5px;
+            cursor: pointer;
+            border-radius: 3px;
+            /* Optional: rounded corners */
+        }
+
+        .text-formatting-toolbar button:hover {
+            background-color: #ddd;
+        }
+
+        .text-formatting-toolbar select {
+            border: 1px solid #ccc;
+            padding: 2px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="left-panel">
+        <div class="notebook-container">
+            <h2>Notes</h2>
+            <ul id="notes-list" class="notes-list"></ul>
+            <button id="add-root-note-button">Add Root Note</button>
+        </div>
+        <div id="context-menu">
+            <ul>
+                <li id="add-child-note">Add Child Note</li>
+                <li id="delete-note">Delete Note</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="right-panel">
+        <div class="controls">
+            <label for="save-name">Save Name:</label>
+            <input type="text" id="save-name" placeholder="Enter save name">
+            <button id="save-button">Save</button>
+            <button id="load-button">Load</button>
+
+            <label for="notebook-name">Notebook Name:</label>
+            <input type="text" id="notebook-name" placeholder="Enter notebook name">
+            <button id="add-notebook-button">Add Notebook</button>
+            <div id="error-message" class="error-message hidden"></div>
+
+            <div class="notebook-selector">
+                <label for="notebook-select">Select Notebook:</label>
+                <select id="notebook-select" onchange="switchNotebook(this.value)">
+                    <option value="">-- Select a Notebook --</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="notebook-container">
+            <h2>Note Content</h2>
+            <div id="note-content-area" class="note-content-area"></div>
+            <div class="controls">
+                <button id="add-text-note-button">Add Text Note</button>
+                <button id="add-canvas-note-button">Add Canvas Note</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let notebooks = [];
+        let currentNotebookIndex = -1;
+        let currentNoteId = null;
+        let nextNoteId = 1;
+        let rightClickedNoteId = null;
+
+        const notebookNameInput = document.getElementById('notebook-name');
+        const saveButton = document.getElementById('save-button');
+        const loadButton = document.getElementById('load-button');
+        const addNotebookButton = document.getElementById('add-notebook-button');
+        const notebookSelect = document.getElementById('notebook-select');
+        const notesList = document.getElementById('notes-list');
+        const noteContentArea = document.getElementById('note-content-area');
+        const addTextNoteButton = document.getElementById('add-text-note-button');
+        const addCanvasNoteButton = document.getElementById('add-canvas-note-button');
+        const addRootNoteButton = document.getElementById('add-root-note-button');
+        const contextMenu = document.getElementById('context-menu');
+        const addChildNoteOption = document.getElementById('add-child-note');
+        const deleteNoteOption = document.getElementById('delete-note');
+        const errorMessage = document.getElementById('error-message');
+        const saveNameInput = document.getElementById('save-name');
+
+
+        saveButton.addEventListener('click', saveNotebooks);
+        loadButton.addEventListener('click', loadNotebooks);
+        addNotebookButton.addEventListener('click', addNotebook);
+        addTextNoteButton.addEventListener('click', () => addNoteElement('text'));
+        addCanvasNoteButton.addEventListener('click', () => addNoteElement('canvas'));
+        addRootNoteButton.addEventListener('click', addRootNote);
+        addChildNoteOption.addEventListener('click', addChildNote);
+        deleteNoteOption.addEventListener('click', deleteNote);
+        noteContentArea.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+        });
+        document.addEventListener('click', hideContextMenu);
+
+        function addNotebook() {
+            const notebookName = notebookNameInput.value.trim();
+            if (!notebookName) {
+                showError("Please enter a notebook name.");
+                return;
+            }
+            if (notebooks.some(nb => nb.name === notebookName)) {
+                showError("Notebook with this name already exists.");
+                return;
+            }
+
+            notebooks.push({ name: notebookName, notes: [] });
+            updateNotebookSelect();
+            notebookNameInput.value = '';
+            hideError();
+            currentNotebookIndex = notebooks.length - 1;
+            notebookSelect.value = notebookName;
+            renderNotesList();
+            clearNoteContentArea();
+        }
+
+        function updateNotebookSelect() {
+            let options = '<option value="">-- Select a Notebook --</option>';
+            notebooks.forEach((notebook, index) => {
+                options += `<option value="${notebook.name}" <span class="math-inline">\{index \=\=\= currentNotebookIndex ? 'selected' \: ''\}\></span>{notebook.name}</option>`;
+            });
+            notebookSelect.innerHTML = options;
+        }
+
+        function switchNotebook(notebookName) {
+            if (!notebookName) {
+                currentNotebookIndex = -1;
+                renderNotesList();
+                clearNoteContentArea();
+                return;
+            }
+
+            // Save dimensions *before* switching notebooks
+            if (currentNoteId !== null) {
+                saveCurrentNoteElementDimensions();
+            }
+
+
+            currentNotebookIndex = notebooks.findIndex(nb => nb.name === notebookName);
+            if (currentNotebookIndex === -1) {
+                showError("Selected notebook not found.");
+                return;
+            }
+            renderNotesList();
+            clearNoteContentArea();
+            currentNoteId = null; // Reset currentNoteId
+        }
+
+        function addRootNote() {
+            if (currentNotebookIndex === -1) {
+                showError("Please select a notebook first.");
+                return;
+            }
+            const newNote = {
+                id: nextNoteId++,
+                parentId: null,
+                content: []
+            };
+            notebooks[currentNotebookIndex].notes.push(newNote);
+            renderNotesList();
+            selectNote(newNote.id);
+        }
+
+        function findNote(noteId, notes = notebooks[currentNotebookIndex]?.notes) {
+            if (!notes) return null;
+
+            for (const note of notes) {
+                if (note.id === noteId) {
+                    return note;
+                }
+                if (note.children) {
+                    const found = findNote(noteId, note.children);
+                    if (found) {
+                        return found;
+                    }
+                }
+            }
+            return null;
+        }
+
+
+        function renderNotesList() {
+            notesList.innerHTML = ''; // Clear existing list
+            if (currentNotebookIndex === -1) return; // No notebook selected
+
+            const notes = notebooks[currentNotebookIndex].notes;
+
+            // Recursive function to create a note element (li)
+            function createNoteElement(note) {
+                const listItem = document.createElement('li');
+                listItem.classList.add('note-item');
+                if (note.id === currentNoteId) {
+                    listItem.classList.add('selected');
+                }
+                if (note.parentId === null) {
+                    listItem.classList.add('root-note');
+                } else {
+                    listItem.classList.add('child-note');
+                }
+                // Add title and buttons *inside* the note item
+                listItem.innerHTML = `
+                <span class="title">Note ${note.id}</span>
+                <div class="buttons">
+                    <button class="add-child-button">+</button>
+                    <button class="delete-note-button">X</button>
+                </div>
+            `;
+
+                listItem.addEventListener('click', (event) => {
+                    event.stopPropagation(); // Prevent event bubbling
+
+                    // Save dimensions *before* switching notes
+                    if (currentNoteId !== null) {
+                        saveCurrentNoteElementDimensions();
+                    }
+
+                    selectNote(note.id); // Select note on click
+                });
+
+                const addChildButton = listItem.querySelector('.add-child-button');
+                const deleteNoteButton = listItem.querySelector('.delete-note-button');
+
+                addChildButton.addEventListener('click', (event) => {
+                    event.stopPropagation(); // Prevent note selection
+                    rightClickedNoteId = note.id; // Set rightClickedNoteId for addChildNote
+                    addChildNote();
+                });
+
+                deleteNoteButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    rightClickedNoteId = note.id;
+                    deleteNote();
+                });
+
+
+                listItem.addEventListener('contextmenu', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    showContextMenu(event, note.id);
+                });
+
+                return listItem;
+            }
+
+            // Recursive function to render the notes tree
+            function renderNotesRecursive(notes, parentElement) {
+                if (!notes) return;
+
+                for (const note of notes) {
+                    const noteElement = createNoteElement(note); // Create the li
+                    parentElement.appendChild(noteElement);
+
+                    if (note.children && note.children.length > 0) {
+                        const childList = document.createElement('ul'); // Create a nested ul
+                        noteElement.appendChild(childList);
+                        renderNotesRecursive(note.children, childList); // Recurse
+                    }
+                }
+            }
+
+            const tree = buildNoteTree(notebooks[currentNotebookIndex].notes);
+            renderNotesRecursive(tree, notesList); // Start rendering
+        }
+
+        function selectNote(noteId) {
+            currentNoteId = noteId;
+            renderNotesList(); // Highlight selected note
+            renderNoteContent(); // Display content
+        }
+        function showContextMenu(event, noteId) {
+            rightClickedNoteId = noteId;
+            contextMenu.style.left = `${event.pageX}px`;
+            contextMenu.style.top = `${event.pageY}px`;
+            contextMenu.style.display = 'block';
+        }
+
+        function addChildNote() {
+            if (currentNotebookIndex === -1 || rightClickedNoteId === null) {
+                showError("Please select a notebook and right-click a note.");
+                return;
+            }
+
+            const parentNote = findNote(rightClickedNoteId);
+
+            if (!parentNote) {
+                showError("Parent note not found.");
+                return;
+            }
+            if (!parentNote.children) {
+                parentNote.children = [];
+            }
+
+            const newNote = {
+                id: nextNoteId++,
+                parentId: rightClickedNoteId,
+                content: []
+            };
+
+            parentNote.children.push(newNote);
+            hideContextMenu();
+            renderNotesList(); // Re-render the entire list
+            selectNote(newNote.id); // Select the newly created note
+        }
+        function deleteNote() {
+            if (currentNotebookIndex === -1 || rightClickedNoteId === null) {
+                showError("Please select a notebook and right-click a note to delete.");
+                return;
+            }
+
+            const notebook = notebooks[currentNotebookIndex];
+            const noteToDelete = findNote(rightClickedNoteId, notebook.notes);
+            if (!noteToDelete) {
+                showError("note not found");
+                return;
+            }
+            function deleteNoteRecursive(notes, noteIdToDelete) {
+                for (let i = 0; i < notes.length; i++) {
+                    if (notes[i].id === noteIdToDelete) {
+                        notes.splice(i, 1);
+                        return true; // Note was deleted
+                    }
+                    if (notes[i].children && deleteNoteRecursive(notes[i].children, noteIdToDelete)) {
+                        return true; // Note was deleted in children
+                    }
+                }
+                return false;
+            }
+
+            deleteNoteRecursive(notebooks[currentNotebookIndex].notes, rightClickedNoteId);
+
+            if (rightClickedNoteId === currentNoteId) {
+                clearNoteContentArea();  // Clear content area
+                currentNoteId = null; // Reset current note ID
+            }
+
+            hideContextMenu();
+            renderNotesList(); // Re-render the list
+        }
+
+        function hideContextMenu() {
+            contextMenu.style.display = 'none';
+        }
+
+        function buildNoteTree(notes) {
+            const noteMap = new Map();
+            const tree = [];
+
+            for (const note of notes) {
+                noteMap.set(note.id, { ...note, children: [] });
+            }
+
+            for (const note of notes) {
+                const noteItem = noteMap.get(note.id);
+                if (note.parentId === null) {
+                    tree.push(noteItem);
+                } else {
+                    const parentNote = noteMap.get(note.parentId);
+                    if (parentNote) {
+                        parentNote.children.push(noteItem);
+                    }
+                }
+            }
+            return tree;
+        }
+
+
+        function saveCurrentNoteElementDimensions() {
+            if (currentNoteId === null) return;
+            const currentNote = findNote(currentNoteId);
+            if (!currentNote) return;
+
+            currentNote.content.forEach(elementData => {
+                const domElement = document.getElementById(elementData.id);
+                if (domElement) {
+                    elementData.width = domElement.offsetWidth;
+                    elementData.height = domElement.offsetHeight;
+                    elementData.x = domElement.offsetLeft;
+                    elementData.y = domElement.offsetTop;
+                    if (elementData.type === 'canvas') {
+                        const canvas = domElement.querySelector('canvas');
+                        elementData.imageData = canvas.toDataURL();
+                    }
+                }
+            });
+        }
+
+
+        function renderNoteContent() {
+            clearNoteContentArea();
+
+            if (currentNoteId === null) return;
+
+            const currentNote = findNote(currentNoteId);
+            if (!currentNote) {
+                console.error("Current note not found.");
+                return;
+            }
+            currentNote.content.forEach(element => {
+                if (element.type === 'text') {
+                    addTextNoteElement(element);
+                } else if (element.type === 'canvas') {
+                    addCanvasNoteElement(element);
+                }
+            });
+
+        }
+
+
+        function clearNoteContentArea() {
+            noteContentArea.innerHTML = '';
+        }
+
+
+        function addNoteElement(type) {
+            if (currentNoteId === null) {
+                showError("Select a note first");
+                return;
+            }
+            const currentNote = findNote(currentNoteId);
+            if (!currentNote) return;
+
+            const elementData = {
+                type: type,
+                x: 50,
+                y: 50,
+                width: (type === 'text' ? 150 : 200),
+                height: (type === 'text' ? 100 : 150),
+                id: `note-element-${Date.now()}`,
+                content: (type === 'text' ? 'New text note' : null),
+                isCollapsed: false,
+                fontWeight: 'normal',
+                fontStyle: 'normal',
+                fontSize: '16px',
+            };
+
+            currentNote.content.push(elementData);
+
+            if (type === 'text') {
+                addTextNoteElement(elementData);
+            } else if (type === 'canvas') {
+                addCanvasNoteElement(elementData);
+            }
+        }
+
+
+
+        function addTextNoteElement(elementData) {
+            const textNote = document.createElement('div');
+            textNote.classList.add('note-element', 'text-note');
+            textNote.id = elementData.id;
+            textNote.style.left = `${elementData.x}px`;
+            textNote.style.top = `${elementData.y}px`;
+            textNote.style.width = `${elementData.width}px`; // Use stored width
+            textNote.style.height = `${elementData.height}px`; // Use stored height
+
+
+            if (elementData.isCollapsed) {
+                textNote.classList.add('collapsed');
+            }
+
+            textNote.innerHTML = `
+            <div class="note-element-header">
+                <span class="title">Text Note ${elementData.id}</span>
+                <div class="buttons">
+                    <button class="collapse-button">${elementData.isCollapsed ? '+' : '-'}</button>
+                    <button class="delete-button">X</button>
+                </div>
+            </div>
+            <div class="note-element-content">
+                <div class="text-formatting-toolbar">
+                    <button data-command="bold">B</button>
+                <button data-command="italic">I</button>
+                <button data-command="underline">U</button>
+                <select data-command="fontSize">
+                  <option value="3">Normal</option>
+                  <option value="5">Large</option>
+                  <option value="7">Huge</option>
+                </select>
+                <select data-command="fontName">
+                  <option value="Arial">Arial</option>
+                  <option value="Times New Roman">Times New Roman</option>
+                  <option value="Courier New">Courier New</option>
+                </select>
+                <button data-command="justifyLeft">Left</button>
+                <button data-command="justifyCenter">Center</button>
+                <button data-command="justifyRight">Right</button>
+                <button data-command="insertUnorderedList">UL</button>
+                <button data-command="insertOrderedList">OL</button>
+                <button data-command="createLink">Link</button>
+                <input type="color" data-command="foreColor" title="Text Color">
+                <input type="color" data-command="backColor" title="Highlight Color">
+                </div>
+                <div class="text-content" contenteditable="true">${elementData.content}</div>
+            </div>
+        `;
+
+            noteContentArea.appendChild(textNote);
+
+            const textContentDiv = textNote.querySelector('.text-content');
+            // Apply initial formatting and size
+            applyFormatting(textContentDiv, elementData);
+
+
+            const toolbar = textNote.querySelector('.text-formatting-toolbar');
+            // Toolbar event listener (delegated)
+            toolbar.addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === "SELECT" || e.target.tagName == "INPUT") {
+                    const command = e.target.dataset.command; // Get command from data-attribute
+                    document.execCommand(command, false, e.target.value); // Execute command
+                    contentDiv.focus(); // Keep focus in content area
+                }
+            });
+            //Listen for change in select
+            toolbar.addEventListener('change', (e) => {
+                if (e.target.tagName === 'SELECT') {
+                    const command = e.target.dataset.command;
+                    document.execCommand(command, false, e.target.value);
+                    contentDiv.focus();
+                }
+            });
+            // Listen for change in input
+            toolbar.addEventListener('change', (e) => {
+                if (e.target.tagName === 'INPUT') {
+                    const command = e.target.dataset.command;
+                    document.execCommand(command, false, e.target.value);
+                    contentDiv.focus();
+                }
+            });
+
+
+            textContentDiv.addEventListener('input', () => {
+                elementData.content = textContentDiv.innerHTML;
+            });
+
+            const collapseButton = textNote.querySelector('.collapse-button');
+            const deleteButton = textNote.querySelector('.delete-button');
+
+            collapseButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                toggleCollapse(textNote, elementData);
+            });
+
+            deleteButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                deleteNoteElement(elementData.id);
+            });
+            makeDraggableAndResizable(textNote, elementData);
+            addNoteElementListeners(textNote, elementData);
+        }
+
+
+
+        function applyFormatting(element, elementData) {
+            element.style.fontWeight = elementData.fontWeight;
+            element.style.fontStyle = elementData.fontStyle;
+            element.style.fontSize = elementData.fontSize;
+        }
+
+
+
+        function addCanvasNoteElement(elementData) {
+            const canvasNote = document.createElement('div');
+            canvasNote.classList.add('note-element', 'canvas-note');
+            canvasNote.id = elementData.id;
+            canvasNote.style.left = `${elementData.x}px`;
+            canvasNote.style.top = `${elementData.y}px`;
+            canvasNote.style.width = `${elementData.width}px`; // Use stored width
+            canvasNote.style.height = `${elementData.height}px`; // Use stored height
+
+
+
+            if (elementData.isCollapsed) {
+                canvasNote.classList.add('collapsed');
+            }
+
+            const canvas = document.createElement('canvas');
+            // Set dimensions *before* drawing or loading
+            canvas.width = elementData.width;
+            canvas.height = elementData.height;
+
+
+            canvasNote.innerHTML = `
+        <div class="note-element-header">
+             <span class="title">Canvas Note ${elementData.id}</span>
+            <div class="buttons">
+                <button class="collapse-button">${elementData.isCollapsed ? '+' : '-'}</button>
+                <button class="delete-button">X</button>
+             </div>
+        </div>
+        <div class="note-element-content">
+        </div>
+    `;
+            canvasNote.querySelector(".note-element-content").appendChild(canvas);
+            noteContentArea.appendChild(canvasNote);
+
+            const ctx = canvas.getContext('2d');
+
+            // Load image (if any) *after* setting dimensions
+            if (elementData.imageData) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height); // Draw at original size
+                };
+                img.src = elementData.imageData;
+            }
+
+            let isDrawing = false;
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                ctx.beginPath();
+                ctx.moveTo(e.offsetX, e.offsetY);
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDrawing) {
+                    ctx.lineTo(e.offsetX, e.offsetY);
+                    ctx.stroke();
+                }
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    ctx.closePath();
+                    elementData.imageData = canvas.toDataURL(); //save on mouse up.
+                }
+            });
+
+            canvas.addEventListener('mouseout', () => {
+                if (isDrawing) {
+                    isDrawing = false;
+                    ctx.closePath();
+                    elementData.imageData = canvas.toDataURL();
+                }
+
+            });
+
+            makeDraggableAndResizable(canvasNote, elementData);
+            addNoteElementListeners(canvasNote, elementData);
+
+            const collapseButton = canvasNote.querySelector('.collapse-button');
+            const deleteButton = canvasNote.querySelector('.delete-button');
+            collapseButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                toggleCollapse(canvasNote, elementData);
+            });
+            deleteButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                deleteNoteElement(elementData.id);
+            });
+        }
+
+        function addNoteElementListeners(element, elementData) {
+            element.addEventListener('click', () => {
+                selectNoteElement(element);
+            });
+        }
+        function selectNoteElement(element) {
+
+            document.querySelectorAll('.note-element.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+
+            element.classList.add('selected');
+            element.style.zIndex = 10;
+
+            document.querySelectorAll('.note-element:not(.selected)').forEach(el => {
+                el.style.zIndex = 1;
+            });
+        }
+
+        function toggleCollapse(element, elementData) {
+            element.classList.toggle('collapsed');
+            elementData.isCollapsed = !elementData.isCollapsed;
+            const collapseButton = element.querySelector('.collapse-button');
+            collapseButton.textContent = elementData.isCollapsed ? '+' : '-';
+        }
+
+        function deleteNoteElement(elementId) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            const currentNote = findNote(currentNoteId); // Find the current note
+            if (!currentNote) return;
+
+            // Find and remove the elementData from currentNote.content
+            const index = currentNote.content.findIndex(item => item.id === elementId);
+            if (index > -1) {
+                currentNote.content.splice(index, 1);
+            }
+
+            element.remove(); // Remove from the DOM
+        }
+
+
+        function makeDraggableAndResizable(element, elementData) {
+            let offsetX, offsetY, isDragging = false;
+            const header = element.querySelector('.note-element-header');
+
+            header.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                offsetX = e.clientX - element.offsetLeft;
+                offsetY = e.clientY - element.offsetTop;
+                selectNoteElement(element); // Select the note
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    elementData.x = e.clientX - offsetX;
+                    elementData.y = e.clientY - offsetY;
+                    element.style.left = `${elementData.x}px`;
+                    element.style.top = `${elementData.y}px`;
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            const observer = new ResizeObserver(entries => {
+                for (let entry of entries) {
+                    if (entry.target === element) {
+                        elementData.width = entry.contentRect.width;
+                        elementData.height = entry.contentRect.height;
+
+                        if (element.classList.contains('canvas-note')) {
+                            const canvas = element.querySelector('canvas');
+                            const tempCanvas = document.createElement('canvas');
+                            const tempCtx = tempCanvas.getContext('2d');
+
+                            tempCanvas.width = canvas.width;
+                            tempCanvas.height = canvas.height;
+                            tempCtx.drawImage(canvas, 0, 0);
+
+                            canvas.width = entry.contentRect.width;
+                            canvas.height = entry.contentRect.height;
+
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height);
+                            elementData.imageData = canvas.toDataURL(); //save image after resize
+                        }
+                    }
+                }
+            });
+            observer.observe(element);
+        }
+
+
+        function saveNotebooks() {
+            const saveName = saveNameInput.value.trim();
+            if (!saveName) {
+                showError("Please enter a name to save.");
+                return;
+            }
+            if (!notebooks.length) {
+                showError("Nothing to save");
+                return;
+            }
+
+            try {
+                const dataString = JSON.stringify(notebooks);
+                localStorage.setItem(saveName, dataString);
+                hideError();
+                alert('Notebooks saved as ' + saveName + '!');
+                saveNameInput.value = '';
+            } catch (error) {
+                showError("Error saving notebooks: " + error);
+            }
+        }
+
+        function loadNotebooks() {
+            const saveName = saveNameInput.value.trim();
+            if (!saveName) {
+                showError("Please enter a name to load.");
+                return;
+            }
+
+            try {
+                const dataString = localStorage.getItem(saveName);
+                if (dataString) {
+                    notebooks = JSON.parse(dataString);
+                    nextNoteId = findMaxNoteId(notebooks) + 1;
+                    updateNotebookSelect();
+                    hideError();
+                    if (notebooks.length > 0) {
+                        currentNotebookIndex = 0;
+                        notebookSelect.value = notebooks[0].name;
+                        renderNotesList();
+                    }
+                    saveNameInput.value = '';
+                } else {
+                    showError("No saved data found for: " + saveName);
+                }
+            } catch (error) {
+                showError("Error loading notebooks: " + error);
+            }
+        }
+
+        function findMaxNoteId(notebooks) {
+            let maxId = 0;
+            function traverseNotes(notes) {
+                for (const note of notes) {
+                    maxId = Math.max(maxId, note.id);
+                    if (note.children) {
+                        traverseNotes(note.children);
+                    }
+                }
+            }
+            for (const notebook of notebooks) {
+                traverseNotes(notebook.notes);
+            }
+            return maxId;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+
+        function hideError() {
+            errorMessage.classList.add('hidden');
+        }
+    </script>
+</body>
+
+</html>
